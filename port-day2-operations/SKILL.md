@@ -23,194 +23,123 @@ Day-2 actions operate on existing catalog entities — scale, restart, rollback,
 | Aspect | Day-2 | Create |
 |---|---|---|
 | `operation` field | `"DAY-2"` | `"CREATE"` |
-| Target entity | Required (user selects or pre-filled) | Not applicable |
+| Target entity | Existing entity (user selects in UI) | Not applicable |
 | `blueprintIdentifier` | Required | Optional |
-| Context available | `{{ .entity.* }}` | Not available |
+| Entity context available | Yes — `{{ .entity.* }}` | No |
 
-## Scale Deployment Action
+## Action Skeleton
+
+Every Day-2 action follows this structure. Replace `<placeholders>` with values from the user's setup:
 
 ```json
 {
-  "identifier": "scale_deployment",
-  "title": "Scale Deployment",
-  "icon": "Kubernetes",
+  "identifier": "<action-identifier>",
+  "title": "<Human Readable Title>",
   "trigger": {
     "type": "self-service",
     "operation": "DAY-2",
-    "blueprintIdentifier": "workload",
+    "blueprintIdentifier": "<the-blueprint-this-action-targets>",
     "userInputs": {
-      "properties": {
-        "replicas": {
-          "type": "number",
-          "title": "Desired Replicas",
-          "default": 2,
-          "minimum": 1,
-          "maximum": 20
-        }
-      },
-      "required": ["replicas"]
+      "properties": { ... },
+      "required": [...]
     }
   },
-  "invocationMethod": {
-    "type": "GITHUB",
-    "org": "my-org",
-    "repo": "platform-actions",
-    "workflow": "scale-deployment.yml",
-    "workflowInputs": {
-      "workload_id":  "{{ .entity.identifier }}",
-      "namespace":    "{{ .entity.properties.namespace }}",
-      "cluster":      "{{ .entity.properties.cluster }}",
-      "replicas":     "{{ .inputs.replicas }}",
-      "port_run_id":  "{{ .run.id }}"
-    }
+  "invocationMethod": { ... },
+  "requiredApproval": false
+}
+```
+
+## Pattern 1: Forward Entity Context to the Backend
+
+The most important Day-2 pattern: use `{{ .entity.* }}` to pass what Port already knows to the backend, so the user only inputs what's actually new.
+
+```json
+"workflowInputs": {
+  "port_run_id": "{{ .run.id }}",
+
+  // From the entity — user doesn't have to type these
+  "entity_id":  "{{ .entity.identifier }}",
+  "env":        "{{ .entity.properties.<environment-property-name> }}",
+  "cluster":    "{{ .entity.properties.<cluster-property-name> }}",
+
+  // From the user's form input
+  "new_value":  "{{ .inputs.<input-name> }}"
+}
+```
+
+Always include `port_run_id`. Without it the backend cannot report status back to Port and the action run stays "In Progress" forever.
+
+## Pattern 2: Restrict Action Visibility with `condition`
+
+Without a `condition`, a Day-2 action appears on **every** entity of the blueprint. Use `condition` to limit it:
+
+```json
+"trigger": {
+  "operation": "DAY-2",
+  "blueprintIdentifier": "<your-blueprint>",
+  "condition": {
+    "type": "SEARCH",
+    "rules": [
+      { "property": "<property-name>", "operator": "=", "value": "<restricting-value>" }
+    ],
+    "combinator": "and"
   }
 }
 ```
 
-## Restart Service Action
+Example use cases:
+- Show a "promote to production" action only on entities where `environment = staging`
+- Show a "scale down" action only where `replicas > 1`
+- Hide a destructive action on entities owned by a different team
+
+## Pattern 3: Require Approval for Destructive Actions
+
+For anything irreversible (rollback, delete, scale to zero):
 
 ```json
-{
-  "identifier": "restart_service",
-  "title": "Restart Service",
-  "icon": "RefreshCw",
-  "trigger": {
-    "type": "self-service",
-    "operation": "DAY-2",
-    "blueprintIdentifier": "workload",
-    "userInputs": {
-      "properties": {
-        "reason": { "type": "string", "title": "Reason for restart" }
-      },
-      "required": []
+"requiredApproval": true
+```
+
+Pair with a confirmation boolean input to make the user explicitly acknowledge the consequence:
+
+```json
+"userInputs": {
+  "properties": {
+    "target_version": { "type": "string", "title": "Target version to roll back to" },
+    "confirm": {
+      "type": "boolean",
+      "title": "I understand this will restart the service",
+      "default": false
     }
   },
-  "invocationMethod": {
-    "type": "GITHUB",
-    "org": "my-org",
-    "repo": "platform-actions",
-    "workflow": "restart-deployment.yml",
-    "workflowInputs": {
-      "workload_id": "{{ .entity.identifier }}",
-      "namespace":   "{{ .entity.properties.namespace }}",
-      "cluster":     "{{ .entity.properties.cluster }}",
-      "reason":      "{{ .inputs.reason }}",
-      "port_run_id": "{{ .run.id }}"
-    }
-  }
+  "required": ["target_version", "confirm"]
 }
 ```
 
-## Rollback Action
+## Pattern 4: Update Entity State After the Action
 
-```json
-{
-  "identifier": "rollback_deployment",
-  "title": "Rollback Deployment",
-  "icon": "Undo",
-  "trigger": {
-    "type": "self-service",
-    "operation": "DAY-2",
-    "blueprintIdentifier": "workload",
-    "userInputs": {
-      "properties": {
-        "target_version": {
-          "type": "string",
-          "title": "Target Image Tag / SHA",
-          "description": "e.g. v1.2.3 or abc1234"
-        },
-        "confirm": {
-          "type": "boolean",
-          "title": "I confirm this will cause a service restart",
-          "default": false
-        }
-      },
-      "required": ["target_version", "confirm"]
-    },
-    "condition": {
-      "type": "SEARCH",
-      "rules": [
-        { "property": "environment", "operator": "=", "value": "production" }
-      ],
-      "combinator": "and"
-    }
-  },
-  "invocationMethod": {
-    "type": "GITHUB",
-    "org": "my-org",
-    "repo": "platform-actions",
-    "workflow": "rollback-deployment.yml",
-    "workflowInputs": {
-      "workload_id":     "{{ .entity.identifier }}",
-      "target_version":  "{{ .inputs.target_version }}",
-      "port_run_id":     "{{ .run.id }}"
-    }
-  },
-  "requiredApproval": true
-}
-```
-
-## Update Environment Config Action
-
-```json
-{
-  "identifier": "update_env_config",
-  "title": "Update Environment Config",
-  "icon": "Settings",
-  "trigger": {
-    "type": "self-service",
-    "operation": "DAY-2",
-    "blueprintIdentifier": "microservice",
-    "userInputs": {
-      "properties": {
-        "env_key":   { "type": "string", "title": "Config Key" },
-        "env_value": { "type": "string", "title": "Config Value" },
-        "environment": {
-          "type": "string",
-          "title": "Environment",
-          "enum": ["development", "staging", "production"]
-        }
-      },
-      "required": ["env_key", "env_value", "environment"]
-    }
-  },
-  "invocationMethod": {
-    "type": "WEBHOOK",
-    "url": "https://api.example.com/config-change",
-    "method": "POST",
-    "headers": { "Authorization": "Bearer {{ .secrets.CONFIG_API_TOKEN }}" },
-    "body": {
-      "service":     "{{ .entity.identifier }}",
-      "environment": "{{ .inputs.environment }}",
-      "key":         "{{ .inputs.env_key }}",
-      "value":       "{{ .inputs.env_value }}",
-      "run_id":      "{{ .run.id }}"
-    }
-  }
-}
-```
-
-## Updating Entity State After Day-2 Action
-
-After your backend completes the operation, update the entity to reflect the new state:
+Your backend should write the new state back to Port after completing the operation, so the catalog stays in sync:
 
 ```bash
-# Update entity after scale
-curl -X PATCH "https://api.port.io/v1/blueprints/workload/entities/$WORKLOAD_ID?merge=true" \
+# 1. Update the entity property that changed
+curl -X PATCH "https://api.port.io/v1/blueprints/<blueprint>/entities/<entity-id>?merge=true" \
   -H "Authorization: Bearer $PORT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"properties\": {\"replicas\": $NEW_REPLICAS}}"
+  -d '{"properties": {"<changed-property>": <new-value>}}'
 
-# Then mark the action run as successful
+# 2. Report the action run result
 curl -X PATCH "https://api.port.io/v1/actions/runs/$PORT_RUN_ID" \
   -H "Authorization: Bearer $PORT_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"status\": \"SUCCESS\", \"message\": {\"run_status\": \"Scaled to $NEW_REPLICAS replicas\"}}"
+  -d '{"status": "SUCCESS", "message": {"run_status": "<what happened>"}}'
 ```
+
+`merge=true` ensures only the updated property changes; all other entity fields are left untouched.
 
 ## Gotchas
 
-- DAY-2 actions without a `condition` appear on **every** entity of the blueprint — add conditions to limit visibility (e.g., only for production environments).
-- `requiredApproval: true` on destructive Day-2 actions (rollback, scale to 0) is strongly recommended.
-- Use `{{ .entity.properties.<key> }}` in `workflowInputs` to pass the current entity state to the backend without requiring the user to re-enter known values.
-- Always pass `port_run_id` to your backend so it can report success/failure; without it the action run stays "In Progress" indefinitely.
+- `operation: "DAY-2"` requires `blueprintIdentifier` — omitting it causes a validation error.
+- Without `condition`, the action appears on every entity of the blueprint. Always consider whether it should be restricted.
+- `{{ .entity.properties.<key> }}` only works if that property exists on the blueprint. If it doesn't, the value will be empty string — not null.
+- `requiredApproval: true` blocks execution until an Admin or Moderator approves in the Port UI.
+- The action run stays "In Progress" indefinitely if the backend never calls `PATCH /actions/runs/{runId}`. Always handle both success and failure paths.
