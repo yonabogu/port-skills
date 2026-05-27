@@ -43,12 +43,7 @@ curl -X POST https://api.port.io/v1/blueprints \
       },
       "required": ["language"]
     },
-    "calculationProperties": {
-      "grafana_url": {
-        "type": "string", "format": "url", "title": "Grafana",
-        "calculation": "\"https://grafana.example.com/d/services?var-service=\" + .identifier"
-      }
-    },
+    "calculationProperties": {},
     "relations": {
       "team": { "title": "Owning Team", "target": "team", "required": false, "many": false }
     }
@@ -152,9 +147,9 @@ curl -X POST "https://api.port.io/v1/blueprints/microservice/actions" \
     },
     "invocationMethod": {
       "type": "GITHUB",
-      "org": "my-org",
-      "repo": "port-actions",
-      "workflow": "scaffold-service.yml",
+      "org": "<your-github-org>",
+      "repo": "<repo-containing-the-workflow>",
+      "workflow": "<workflow-file>.yml",
       "workflowInputs": {
         "service_name": "{{ .inputs.service_name }}",
         "language":     "{{ .inputs.language }}",
@@ -180,7 +175,7 @@ curl -X POST "https://api.port.io/v1/blueprints/microservice/entities?upsert=tru
     \"title\": \"$SERVICE_NAME\",
     \"properties\": {
       \"language\": \"$LANGUAGE\",
-      \"repo_url\": \"https://github.com/my-org/$SERVICE_NAME\"
+      \"repo_url\": \"https://github.com/<your-github-org>/$SERVICE_NAME\"
     },
     \"relations\": {
       \"team\": \"$TEAM\"

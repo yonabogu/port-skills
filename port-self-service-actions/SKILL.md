@@ -25,40 +25,26 @@ Self-service actions let you expose infrastructure operations (scaffold, scale, 
 | `DELETE` | Tear down an existing entity |
 | `DAY-2` | Modify or operate on an existing entity |
 
-## Full Action JSON Schema
+## Action JSON Schema
 
 ```json
 {
-  "identifier": "scaffold_service",
-  "title": "Scaffold New Service",
-  "icon": "Git",
-  "description": "Creates a new microservice from template",
+  "identifier": "<action-identifier>",
+  "title": "<Human Readable Title>",
+  "icon": "<Icon>",
+  "description": "<Optional description>",
   "trigger": {
     "type": "self-service",
-    "operation": "CREATE",
-    "blueprintIdentifier": "microservice",
+    "operation": "CREATE",           // CREATE | DAY-2 | DELETE
+    "blueprintIdentifier": "<your-blueprint-identifier>",
     "userInputs": {
       "properties": {
-        "service_name": {
-          "type": "string",
-          "title": "Service Name",
-          "description": "Lowercase, hyphens only"
-        },
-        "language": {
-          "type": "string",
-          "title": "Language",
-          "enum": ["python", "go", "typescript", "java"]
-        },
-        "team": {
-          "type": "string",
-          "format": "team",
-          "title": "Owning Team"
-        }
+        "<input-key>": { "type": "string", "title": "<Label>" }
       },
-      "required": ["service_name", "language"]
+      "required": ["<input-key>"]
     }
   },
-  "invocationMethod": { ... },  // see backends below
+  "invocationMethod": { ... },       // see backends below
   "requiredApproval": false
 }
 ```
@@ -108,12 +94,11 @@ Let users pick from existing catalog entities:
 ```json
 "invocationMethod": {
   "type": "GITHUB",
-  "org": "my-org",
-  "repo": "port-actions",
-  "workflow": "scaffold-service.yml",
+  "org": "<your-github-org>",
+  "repo": "<repo-containing-the-workflow>",
+  "workflow": "<workflow-file>.yml",
   "workflowInputs": {
-    "service_name": "{{ .inputs.service_name }}",
-    "blueprint_id": "{{ .entity.identifier }}",
+    "<input-name>": "{{ .inputs.<input-name> }}",
     "port_run_id":  "{{ .run.id }}"
   },
   "reportWorkflowStatus": true
@@ -128,17 +113,15 @@ Port auto-reports success/failure unless `reportWorkflowStatus: false`.
 ```json
 "invocationMethod": {
   "type": "WEBHOOK",
-  "url": "https://hooks.example.com/port",
-  "agent": false,
-  "synchronized": false,
+  "url": "<your-webhook-url>",
   "method": "POST",
   "headers": {
-    "Authorization": "Bearer {{ .secrets.WEBHOOK_SECRET }}"
+    "Authorization": "Bearer {{ .secrets.<secret-name> }}"
   },
   "body": {
-    "runId": "{{ .run.id }}",
+    "runId":    "{{ .run.id }}",
     "entityId": "{{ .entity.identifier }}",
-    "inputs": "{{ .inputs }}"
+    "inputs":   "{{ .inputs }}"
   }
 }
 ```
@@ -148,11 +131,11 @@ Port auto-reports success/failure unless `reportWorkflowStatus: false`.
 ```json
 "invocationMethod": {
   "type": "GITLAB",
-  "groupName": "my-group",
-  "projectName": "port-actions",
+  "groupName": "<your-gitlab-group>",
+  "projectName": "<your-project>",
   "defaultRef": "main",
   "pipelineVariables": {
-    "SERVICE_NAME": "{{ .inputs.service_name }}",
+    "<VAR_NAME>": "{{ .inputs.<input-name> }}",
     "PORT_RUN_ID": "{{ .run.id }}"
   }
 }
@@ -163,11 +146,11 @@ Port auto-reports success/failure unless `reportWorkflowStatus: false`.
 ```json
 "invocationMethod": {
   "type": "AZURE-DEVOPS",
-  "org": "my-org",
+  "org": "<your-ado-org>",
   "webhook": "port-webhook",
   "payload": {
-    "service": "{{ .inputs.service_name }}",
-    "run_id": "{{ .run.id }}"
+    "<key>":   "{{ .inputs.<input-name> }}",
+    "run_id":  "{{ .run.id }}"
   }
 }
 ```
@@ -212,7 +195,7 @@ Dynamic permission via jqQuery on user properties:
 ```json
 "requiredApproval": {
   "type": "TEAM_MEMBERSHIP",
-  "jqQuery": ".user.teams | map(.name) | contains([\"platform-team\"])"
+  "jqQuery": ".user.teams | map(.name) | contains([\"<your-team-name>\"])"
 }
 ```
 

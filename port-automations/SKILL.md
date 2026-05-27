@@ -21,32 +21,24 @@ Automations execute backend workflows automatically in response to catalog event
 
 ```json
 {
-  "identifier": "notify_on_service_created",
-  "title": "Notify on Service Created",
-  "description": "Sends a Slack notification when a new microservice is added",
-  "icon": "Slack",
+  "identifier": "<automation-identifier>",
+  "title": "<Human Readable Title>",
   "trigger": {
     "type": "automation",
     "event": {
-      "type": "ENTITY_CREATED",
-      "blueprintIdentifier": "microservice"
+      "type": "ENTITY_CREATED",          // see Trigger Types below
+      "blueprintIdentifier": "<your-blueprint>"
     },
-    "condition": {
+    "condition": {                        // optional: omit to fire on every event
       "type": "JQ",
       "expressions": [
-        ".diff.after.properties.environment == \"production\""
+        "<jq-expression-returning-boolean>"
       ],
       "combinator": "and"
     }
   },
-  "invocationMethod": {
-    "type": "WEBHOOK",
-    "url": "https://hooks.slack.com/services/...",
-    "body": {
-      "text": "New service: {{ .entity.title }}"
-    }
-  },
-  "publish": true
+  "invocationMethod": { ... },           // same options as self-service actions
+  "publish": true                        // false = draft, won't fire
 }
 ```
 
@@ -121,9 +113,9 @@ Automations share the same invocation methods as self-service actions:
 // Webhook
 {
   "type": "WEBHOOK",
-  "url": "https://hooks.example.com/port",
+  "url": "<your-webhook-url>",
   "method": "POST",
-  "headers": { "Authorization": "Bearer {{ .secrets.TOKEN }}" },
+  "headers": { "Authorization": "Bearer {{ .secrets.<secret-name> }}" },
   "body": {
     "entity_id":  "{{ .event.context.entityIdentifier }}",
     "blueprint":  "{{ .event.context.blueprintIdentifier }}",
@@ -134,9 +126,9 @@ Automations share the same invocation methods as self-service actions:
 // GitHub Actions
 {
   "type": "GITHUB",
-  "org": "my-org",
-  "repo": "port-automations",
-  "workflow": "handle-event.yml",
+  "org": "<your-github-org>",
+  "repo": "<your-repo>",
+  "workflow": "<workflow-file>.yml",
   "workflowInputs": {
     "entity_id": "{{ .event.context.entityIdentifier }}",
     "event_type": "{{ .event.action }}"
@@ -156,55 +148,61 @@ Automations share the same invocation methods as self-service actions:
 
 ## Common Patterns
 
-### Auto-delete expired environments
+### Auto-cleanup on timer expiry
+
+Trigger: `TIMER_PROPERTY_EXPIRED` on `<your-blueprint>`, property `<your-timer-property>`.
+Use `{{ .event.context.entityIdentifier }}` to pass the expired entity to the backend.
 
 ```json
 {
-  "identifier": "cleanup_expired_env",
+  "identifier": "<automation-id>",
   "trigger": {
     "type": "automation",
     "event": {
       "type": "TIMER_PROPERTY_EXPIRED",
-      "blueprintIdentifier": "environment",
-      "propertyIdentifier": "ttl"
+      "blueprintIdentifier": "<your-blueprint>",
+      "propertyIdentifier": "<your-timer-property>"
     }
   },
   "invocationMethod": {
     "type": "GITHUB",
-    "org": "my-org",
-    "repo": "platform",
-    "workflow": "destroy-environment.yml",
+    "org": "<your-github-org>",
+    "repo": "<your-repo>",
+    "workflow": "<workflow-file>.yml",
     "workflowInputs": {
-      "env_name": "{{ .event.context.entityIdentifier }}"
+      "entity_id": "{{ .event.context.entityIdentifier }}"
     }
   },
   "publish": true
 }
 ```
 
-### Notify on scorecard degradation
+### React to scorecard level change
+
+Trigger: `ENTITY_UPDATED` on `<your-blueprint>`. Use JQ to detect the specific transition.
+Replace `<scorecard-id>` and `<level-name>` with your scorecard identifier and level title.
 
 ```json
 {
-  "identifier": "scorecard_degraded",
+  "identifier": "<automation-id>",
   "trigger": {
     "type": "automation",
     "event": {
       "type": "ENTITY_UPDATED",
-      "blueprintIdentifier": "microservice"
+      "blueprintIdentifier": "<your-blueprint>"
     },
     "condition": {
       "type": "JQ",
       "expressions": [
-        ".diff.before.scorecards.ProductionReadiness.level == \"Gold\"",
-        ".diff.after.scorecards.ProductionReadiness.level != \"Gold\""
+        ".diff.before.scorecards.<scorecard-id>.level == \"<level-name>\"",
+        ".diff.after.scorecards.<scorecard-id>.level != \"<level-name>\""
       ],
       "combinator": "and"
     }
   },
   "invocationMethod": {
     "type": "WEBHOOK",
-    "url": "https://hooks.slack.com/services/..."
+    "url": "<your-webhook-url>"
   }
 }
 ```

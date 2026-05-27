@@ -150,11 +150,11 @@ Compute new values from existing properties using JQ. Supports all JQ operators.
     "type": "string",
     "calculation": ".properties.first_name + \" \" + .properties.last_name"
   },
-  "datadog_url": {
-    "title": "Datadog URL",
+  "external_url": {
+    "title": "External Link",
     "type": "string",
     "format": "url",
-    "calculation": "\"https://app.datadoghq.com/logs?service=\" + .identifier"
+    "calculation": "\"https://your-tool.example.com/service/\" + .identifier"
   },
   "is_high_replica": {
     "title": "High Replica Count",
@@ -171,12 +171,14 @@ For property names with dashes: `.properties.'prop-with-dash'`.
 
 Calculate metrics from related entities (counts, sums, averages, min, max, median).
 
+Replace `<related-blueprint>` with the blueprint you want to aggregate from, and `<property>` with a numeric property on that blueprint.
+
 ```json
 "aggregationProperties": {
-  "open_issues_count": {
-    "title": "Open Issues",
+  "open_items_count": {
+    "title": "Open Items",
     "type": "number",
-    "target": "jiraIssue",          // blueprint to aggregate from
+    "target": "<related-blueprint>",  // blueprint to aggregate from
     "calculationSpec": {
       "func": "count",
       "calculationBy": "entities"
@@ -184,14 +186,14 @@ Calculate metrics from related entities (counts, sums, averages, min, max, media
     "query": {
       "combinator": "and",
       "rules": [
-        { "property": "status", "operator": "=", "value": "open" }
+        { "property": "<status-property>", "operator": "=", "value": "<open-value>" }
       ]
     }
   },
-  "avg_deployment_freq": {
-    "title": "Avg Deployments / Week",
+  "avg_frequency_per_week": {
+    "title": "Avg Per Week",
     "type": "number",
-    "target": "deployment",
+    "target": "<related-blueprint>",
     "calculationSpec": {
       "func": "average",
       "calculationBy": "entities",
@@ -199,14 +201,14 @@ Calculate metrics from related entities (counts, sums, averages, min, max, media
       "measureTimeBy": "$createdAt"
     }
   },
-  "total_story_points": {
-    "title": "Total Story Points",
+  "total_points": {
+    "title": "Total Points",
     "type": "number",
-    "target": "jiraIssue",
+    "target": "<related-blueprint>",
     "calculationSpec": {
       "func": "sum",
       "calculationBy": "property",
-      "property": "story_points"
+      "property": "<numeric-property>"
     }
   }
 }

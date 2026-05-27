@@ -27,11 +27,13 @@ Scorecards evaluate catalog entities against quality/compliance standards and as
 
 ## Scorecard JSON Schema
 
+The identifiers, blueprint, and property names below are illustrative — replace them with your own.
+
 ```json
 {
-  "identifier": "ProductionReadiness",
-  "title": "Production Readiness",
-  "blueprint": "microservice",
+  "identifier": "<scorecard-identifier>",
+  "title": "<Scorecard Title>",
+  "blueprint": "<your-blueprint>",
   "filter": {
     "combinator": "and",
     "rules": [
@@ -173,7 +175,8 @@ curl "https://api.port.io/v1/entities/{entity_id}/scorecards" \
 
 ## Triggering Automations from Scorecard Changes
 
-Use the `ENTITY_UPDATED` automation trigger with a condition on the scorecard level:
+Use the `ENTITY_UPDATED` automation trigger with a JQ condition on the scorecard level.
+Replace `<your-blueprint>`, `<scorecard-id>`, and `<level-title>` with your own values.
 
 ```json
 {
@@ -181,12 +184,12 @@ Use the `ENTITY_UPDATED` automation trigger with a condition on the scorecard le
     "type": "automation",
     "event": {
       "type": "ENTITY_UPDATED",
-      "blueprintIdentifier": "microservice"
+      "blueprintIdentifier": "<your-blueprint>"
     },
     "condition": {
       "type": "JQ",
       "expressions": [
-        ".diff.after.scorecards.ProductionReadiness.level == \"Gold\""
+        ".diff.after.scorecards.<scorecard-id>.level == \"<level-title>\""
       ],
       "combinator": "and"
     }

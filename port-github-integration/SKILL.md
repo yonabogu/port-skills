@@ -35,6 +35,8 @@ Port's GitHub integration (Ocean-based) continuously syncs GitHub data into your
 
 ## Integration Config (`integration.yml` / `config.yml`)
 
+Replace `"microservice"` and `"pullRequest"` with your actual blueprint identifiers.
+
 ```yaml
 resources:
   - kind: repository
@@ -45,7 +47,7 @@ resources:
         mappings:
           identifier: .name
           title: .name
-          blueprint: '"microservice"'
+          blueprint: '"<your-blueprint>"'
           properties:
             url:         .html_url
             description: .description
@@ -66,7 +68,7 @@ resources:
         mappings:
           identifier: '.base.repo.name + "-" + (.number | tostring)'
           title: .title
-          blueprint: '"pullRequest"'
+          blueprint: '"<your-pr-blueprint>"'
           properties:
             url:        .html_url
             status:     .state
@@ -142,12 +144,11 @@ jobs:
 ```json
 "invocationMethod": {
   "type": "GITHUB",
-  "org": "my-org",
-  "repo": "port-actions",
-  "workflow": "scaffold-service.yml",
+  "org": "<your-github-org>",
+  "repo": "<repo-containing-the-workflow>",
+  "workflow": "<workflow-file>.yml",
   "workflowInputs": {
-    "service_name": "{{ .inputs.service_name }}",
-    "language":     "{{ .inputs.language }}",
+    "<input-name>": "{{ .inputs.<input-name> }}",
     "port_run_id":  "{{ .run.id }}"
   },
   "reportWorkflowStatus": true
